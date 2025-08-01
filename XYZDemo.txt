@@ -41,6 +41,14 @@ public class BaseClass {
 			DriverFactory.setDriver(new FirefoxDriver());
 			driver = DriverFactory.getDriver();
 			break;
+		case "edge":
+			DriverFactory.setDriver(new EdgeDriver());
+			driver = DriverFactory.getDriver();
+			break;
+		case "edge":
+			DriverFactory.setDriver(new EdgeDriver());
+			driver = DriverFactory.getDriver();
+			break;
 		default:
 			Assert.fail("********************* Invalid browser selection *********************");
 			break;
