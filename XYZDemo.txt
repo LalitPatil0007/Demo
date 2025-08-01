@@ -1,0 +1,390 @@
+package base;
+
+import java.io.FileInputStream;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.NoSuchElementException;
+import java.util.Properties;
+import java.util.Set;
+import org.openqa.selenium.Alert;
+import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.Keys;
+import org.openqa.selenium.StaleElementReferenceException;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.WindowType;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.edge.EdgeDriver;
+import org.openqa.selenium.firefox.FirefoxDriver;
+import org.openqa.selenium.interactions.Actions;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.FluentWait;
+import org.openqa.selenium.support.ui.Select;
+import org.openqa.selenium.support.ui.WebDriverWait;
+import org.testng.Assert;
+
+import runner.DriverFactory;
+
+public class BaseClass {
+
+	// mvn test -Dcucumber.filter.tags="@name" -Dbrowser="edge" -DparallelExecution="true" -Dinstance="1"
+
+	public WebDriver driver = null;
+
+	public void launchApplication() throws Exception {
+		String url = readExecutionProperties("url");
+		String browser = System.getProperty("browser") == null ? readExecutionProperties("browser"): System.getProperty("browser");
+		switch (browser.toLowerCase()) {
+		case "chrome":
+			DriverFactory.setDriver(new ChromeDriver());
+			driver = DriverFactory.getDriver();
+			break;
+		case "edge":
+			DriverFactory.setDriver(new EdgeDriver());
+			driver = DriverFactory.getDriver();
+			break;
+		case "firefox":
+			DriverFactory.setDriver(new FirefoxDriver());
+			driver = DriverFactory.getDriver();
+
+			break;
+		default:
+			Assert.fail("********************* Invalid browser selection *********************");
+			break;
+		}
+		driver.manage().window().maximize();
+		driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(10));
+		driver.get(url);
+	}
+
+	public String readExecutionProperties(String key) {
+		String reqValue = "";
+		try {
+			Properties properties = new Properties();
+			FileInputStream inputStream = new FileInputStream("./execution.properties");
+			properties.load(inputStream);
+			reqValue = (String) properties.get(key);
+		} catch (Exception e) {
+			Assert.fail(
+					"******* Exception while reading execution.properties file : " + e.getStackTrace() + " **********");
+		}
+
+		return reqValue;
+	}
+
+	public String readLocatorsProperties(String key) throws Exception {
+		String reqValue = "";
+		try {
+			Properties properties = new Properties();
+			FileInputStream inputStream = new FileInputStream("./src/test/resources/locators/locators.properties");
+			properties.load(inputStream);
+			reqValue = (String) properties.get(key);
+		} catch (Exception e) {
+			Assert.fail(
+					"******* Exception while reading execution.properties file : " + e.getStackTrace() + " **********");
+		}
+
+		return reqValue;
+	}
+
+	public WebElement getElementFromString(String nameOfComponent) throws Exception {
+		String xpathOrcss = readLocatorsProperties(nameOfComponent);
+		boolean isXpath = xpathOrcss.contains("/");
+		WebElement element = null;
+		if (isXpath) {
+			element = driver.findElement(By.xpath(xpathOrcss));
+		} else {
+			element = driver.findElement(By.cssSelector(xpathOrcss));
+		}
+		return element;
+	}
+
+	public void waitForVisibilityOf(String xpathOrcss) throws Exception {
+		WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(30));
+		wait.until(ExpectedConditions.visibilityOf(getElementFromString(xpathOrcss)));
+	}
+
+	public void waitForClickableOf(String xpathOrcss) throws Exception {
+		WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(30));
+		wait.until(ExpectedConditions.elementToBeClickable(getElementFromString(xpathOrcss)));
+	}
+
+	public void clickOn(String xpathOrcss) throws Exception {
+		waitHighLight(xpathOrcss);
+		waitForClickableOf(xpathOrcss);
+		getElementFromString(xpathOrcss).click();
+	}
+
+	public void jSClickOn(String xpathOrcss) throws Exception {
+		waitHighLight(xpathOrcss);
+		waitForClickableOf(xpathOrcss);
+		JavascriptExecutor js = (JavascriptExecutor) driver;
+		js.executeScript("arguments[0].click();", getElementFromString(xpathOrcss));
+	}
+
+	public void actionClickOn(String xpathOrcss) throws Exception {
+		Actions ac = new Actions(driver);
+		waitHighLight(xpathOrcss);
+		waitForClickableOf(xpathOrcss);
+		ac.click(getElementFromString(xpathOrcss)).build().perform();
+	}
+
+	public String getPageTitle() {
+		return driver.getTitle();
+	}
+
+	public String getCurrentPageUrl() {
+		return driver.getCurrentUrl();
+	}
+
+	public ArrayList<String> getListOfWindowHandles() {
+		Set<String> windows = driver.getWindowHandles();
+		ArrayList<String> listOfWindows = new ArrayList(windows);
+		return listOfWindows;
+	}
+
+	public String getCurrentWindowHandle() {
+		return driver.getWindowHandle();
+	}
+
+	public void switchToWindow(String window) {
+		driver.switchTo().window(window);
+	}
+
+	public void switchToFrame(String xpathOrcss) throws Exception {
+		driver.switchTo().frame(getElementFromString(xpathOrcss));
+	}
+
+	public void switchToNewWindow() {
+		driver.switchTo().newWindow(WindowType.WINDOW);
+	}
+
+	public void switchToNewTab() {
+		driver.switchTo().newWindow(WindowType.TAB);
+	}
+
+	public void deleteAllBrowserCookies() {
+		driver.manage().deleteAllCookies();
+	}
+
+	public void performBrowserActions(String browserAction) {
+		switch (browserAction.toLowerCase()) {
+		case "navigate back":
+			driver.navigate().back();
+			break;
+		case "navigate forward":
+			driver.navigate().forward();
+			break;
+		case "refresh":
+			driver.navigate().refresh();
+			break;
+		default:
+			Assert.fail("******************* Inappropriate browser action requested ***************************");
+			break;
+		}
+
+	}
+
+	public void closeBrowserSession() {
+		driver.close();
+	}
+
+	public void quitAllBrowserSession() {
+		driver.quit();
+	}
+
+	public void clearTextField(String xpathOrcss) throws Exception {
+		waitHighLight(xpathOrcss);
+		getElementFromString(xpathOrcss).clear();
+	}
+
+	public void clearTextFieldByKeys(String xpathOrcss) throws Exception {
+		waitHighLight(xpathOrcss);
+		getElementFromString(xpathOrcss).sendKeys(Keys.chord(Keys.CONTROL, "a", Keys.BACK_SPACE));
+	}
+
+	public void clearTextLetterByLetter(String xpathOrcss) throws Throwable {
+		waitHighLight(xpathOrcss);
+		String text = getElementFromString(xpathOrcss).getAttribute("value");
+		for (int i = 0; i < text.length(); i++) {
+			getElementFromString(xpathOrcss).sendKeys(Keys.BACK_SPACE);
+			Thread.sleep(100);
+		}
+	}
+
+	public void setTextToInputField(String xpathOrcss, String textToEnter) throws Exception {
+		waitHighLight(xpathOrcss);
+		getElementFromString(xpathOrcss).sendKeys(textToEnter);
+	}
+
+	public void setTextToInputFieldWithJs(String xpathOrcss, String textToEnter) throws Exception {
+		waitHighLight(xpathOrcss);
+		JavascriptExecutor jse = (JavascriptExecutor) driver;
+		jse.executeScript("arguments[0].value='" + textToEnter + "';", getElementFromString(xpathOrcss));
+	}
+
+	public void setTextLetterByLetter(String xpathOrcss, String textToEnter) throws Throwable {
+		waitHighLight(xpathOrcss);
+		for (int i = 0; i < textToEnter.length(); i++) {
+			getElementFromString(xpathOrcss).sendKeys(String.valueOf(textToEnter.charAt(i)));
+			Thread.sleep(100);
+		}
+	}
+
+	public String getTextFrom(String xpathOrcss) throws Exception {
+		boolean isInputField = readLocatorsProperties(xpathOrcss).contains("input");
+		waitHighLight(xpathOrcss);
+		String textFromxpathOrcss = "";
+		if (!isInputField) {
+			textFromxpathOrcss = getElementFromString(xpathOrcss).getText();
+		} else {
+			textFromxpathOrcss = getElementFromString(xpathOrcss).getAttribute("value");
+		}
+		return textFromxpathOrcss;
+	}
+
+	public void scrollElementIntoView(String xpathOrcss) throws Exception {
+		JavascriptExecutor jse = (JavascriptExecutor) driver;
+		jse.executeScript("arguments[0].scrollIntoView(true);", getElementFromString(xpathOrcss));
+		Thread.sleep(500);
+	}
+
+	public void waitHighLight(String xpathOrcss) throws Exception {
+		waitForVisibilityOf(xpathOrcss);
+		JavascriptExecutor jse = (JavascriptExecutor) driver;
+		for (int i = 0; i < 2; i++) {
+			jse.executeScript("arguments[0].setAttribute('style', 'background: yellow; border: 2px solid red;');",
+					getElementFromString(xpathOrcss));
+			Thread.sleep(1000);
+			jse.executeScript("arguments[0].removeAttribute('style');", getElementFromString(xpathOrcss));
+		}
+	}
+
+	public void assertDisplayOf(String xpathOrcss) throws Exception {
+		waitHighLight(xpathOrcss);
+		Assert.assertTrue(getElementFromString(xpathOrcss).isDisplayed(),
+				"Expected element " + xpathOrcss + " is not displayed");
+	}
+
+	public void assertEnableOf(String xpathOrcss) throws Exception {
+		waitHighLight(xpathOrcss);
+		Assert.assertTrue(getElementFromString(xpathOrcss).isEnabled());
+	}
+
+	public void assertSelectionOf(String xpathOrcss) throws Exception {
+		waitHighLight(xpathOrcss);
+		Assert.assertTrue(getElementFromString(xpathOrcss).isSelected());
+	}
+
+	public void assertNonSelectionOf(String xpathOrcss) throws Exception {
+		waitHighLight(xpathOrcss);
+		Assert.assertTrue(!(getElementFromString(xpathOrcss).isSelected()));
+	}
+
+	public void selectDropDownOptionAs(String xpathOrcss, String optionToSelect) throws Exception {
+		waitHighLight(xpathOrcss);
+		WebElement dropDown = getElementFromString(xpathOrcss);
+		Select ddOption = new Select(dropDown);
+		ddOption.selectByVisibleText(optionToSelect);
+	}
+
+	public void scrollToTheElement(String xpathOrcss) throws Exception {
+		JavascriptExecutor js = (JavascriptExecutor) driver;
+		js.executeScript("arguments[0].scrollIntoView(true);", getElementFromString(xpathOrcss));
+	}
+
+	public void hoverOver(String xpathOrcss) throws Exception {
+		Actions ac = new Actions(driver);
+		waitHighLight(xpathOrcss);
+		ac.moveToElement(getElementFromString(xpathOrcss)).build().perform();
+	}
+
+	public void doubleClick(String xpathOrcss) throws Exception {
+		Actions ac = new Actions(driver);
+		waitHighLight(xpathOrcss);
+		ac.doubleClick(getElementFromString(xpathOrcss)).build().perform();
+	}
+
+	public void rightClick(String xpathOrcss) throws Exception {
+		Actions ac = new Actions(driver);
+		waitHighLight(xpathOrcss);
+		ac.contextClick(getElementFromString(xpathOrcss)).build().perform();
+	}
+
+	public void dragAndDrop(String srcxpathOrcss, String destxpathOrcss) throws Exception {
+		Actions ac = new Actions(driver);
+		waitHighLight(srcxpathOrcss);
+		waitHighLight(destxpathOrcss);
+		ac.dragAndDrop(getElementFromString(srcxpathOrcss), getElementFromString(destxpathOrcss)).build().perform();
+	}
+
+	public void clickHoldAndRelease(String srcxpathOrcss, String destxpathOrcss) throws Exception {
+		Actions ac = new Actions(driver);
+		waitHighLight(srcxpathOrcss);
+		waitHighLight(destxpathOrcss);
+		ac.clickAndHold(getElementFromString(srcxpathOrcss)).moveToElement(getElementFromString(destxpathOrcss))
+				.release().perform();
+	}
+
+	public String getTextFromAlert() {
+		Alert alert = driver.switchTo().alert();
+		return alert.getText();
+	}
+
+	public void setTextToAlert(String textToEnter) {
+		Alert alert = driver.switchTo().alert();
+		alert.sendKeys(textToEnter);
+	}
+
+	public void dismissAlert(String textToEnter) {
+		Alert alert = driver.switchTo().alert();
+		alert.dismiss();
+	}
+
+	public void acceptAlert(String textToEnter) {
+		Alert alert = driver.switchTo().alert();
+		alert.accept();
+	}
+
+	public void fluentWaitForElementVisibility(String xpathOrcss) throws Exception {
+		FluentWait wait = new FluentWait(driver).withTimeout(Duration.ofSeconds(30))
+				.pollingEvery(Duration.ofMillis(500))
+				.ignoring(NoSuchElementException.class, StaleElementReferenceException.class);
+		wait.until(ExpectedConditions.visibilityOf(getElementFromString(xpathOrcss)));
+	}
+
+	public void sendKeyboardKeys(String keyName, String xpathOrcss) throws Exception {
+		waitHighLight(xpathOrcss);
+		switch (keyName.toLowerCase()) {
+		case "tab":
+			getElementFromString(xpathOrcss).sendKeys(Keys.TAB);
+			break;
+		case "enter":
+			getElementFromString(xpathOrcss).sendKeys(Keys.ENTER);
+			break;
+		case "delete":
+			getElementFromString(xpathOrcss).sendKeys(Keys.DELETE);
+			break;
+		case "backspace":
+			getElementFromString(xpathOrcss).sendKeys(Keys.BACK_SPACE);
+			break;
+		case "f5":
+			getElementFromString(xpathOrcss).sendKeys(Keys.F5);
+			break;
+		default:
+			break;
+		}
+	}
+
+	public void refreshPageByJS() {
+		JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+		jsExecutor.executeScript("location.reload();");
+	}
+
+	public void assertActualAndExpectedText(String actual, String expected) {
+		Assert.assertEquals(actual, expected, "actual is : [" + actual + "] " + "expected is : [" + expected + "]");
+	}
+
+}
